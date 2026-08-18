@@ -47,9 +47,9 @@ jobs:
       - name: Build Firmware
         run: |
           west build -s app -b nice_nano -- \
-            -DZEPHYR_EXTRA_MODULES="$(pwd)/app/module" \
-            -DDTC_OVERLAY_FILE="$(pwd)/config-repo/config/nice_nano.keymap" \
-            -DDTC_INCLUDE_PATH="$(pwd)/app/module/include"
+            -DSHIELD=ble_fixture \
+            -DCONF_FILE="$(pwd)/config-repo/config/ble_fixture.conf" \
+            -DZEPHYR_EXTRA_MODULES="$(pwd)/config-repo"
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
