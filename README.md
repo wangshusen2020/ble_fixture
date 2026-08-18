@@ -52,7 +52,7 @@ nice!nano 上的 **Nordic Blinky** 夹具固件：持续广播 `Nordic_Blinky`�
    - 有这段日志但手机搜不到：查手机蓝牙开关、距离、是否过滤了 UUID。
    - 完全没有串口：固件没跑或 USB 栈没起来，回到第 1 步看灯。
 
-3. **nRF Connect（手机）**  
+4. **nRF Connect（手机）**  
    - Scanner 里不要只搜名字，先关 Filter。  
    - 应看到 `Nordic_Blinky`，Advertising data 里有 128-bit UUID  
      `00001523-1212-efde-1523-785feabcd123`。  
