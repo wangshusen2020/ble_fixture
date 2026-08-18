@@ -1,4 +1,6 @@
-name: Build ZMK Firmware
+# Copy this file to .github/workflows/build.yml
+# (the GitHub App used by this branch cannot update workflow files).
+name: Build BLE Fixture
 
 on:
   push:
@@ -12,12 +14,13 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: zmkfirmware/zmk-build-arm:stable
+    strategy:
+      fail-fast: false
+      matrix:
+        board: [nice_nano, nice_nano_v2]
     steps:
-      - name: Checkout ZMK
+      - name: Checkout fixture repo
         uses: actions/checkout@v4
-        with:
-          repository: zmkfirmware/zmk
-          ref: main
 
       - name: Cache west modules
         uses: actions/cache@v4
@@ -29,30 +32,27 @@ jobs:
             tools
             zephyr
             zmk
-          key: ${{ runner.os }}-zmk-${{ hashFiles('**/west.yml') }}
+          key: ${{ runner.os }}-west-${{ matrix.board }}-${{ hashFiles('config/west.yml') }}
           restore-keys: |
-            ${{ runner.os }}-zmk-
+            ${{ runner.os }}-west-
 
-      - name: Initialize West Workspace
+      - name: Initialize West workspace
         run: |
-          west init -l app
-          west update
+          west init -l config
+          west update --narrow
           west zephyr-export
 
-      - name: Copy User Config
-        uses: actions/checkout@v4
-        with:
-          path: config-repo
-
-      - name: Build Firmware
+      - name: Build Nordic Blinky fixture
         run: |
-          west build -s app -b nice_nano -- \
-            -DZEPHYR_EXTRA_MODULES="$(pwd)/app/module" \
-            -DDTC_OVERLAY_FILE="$(pwd)/config-repo/config/nice_nano.keymap" \
-            -DDTC_INCLUDE_PATH="$(pwd)/app/module/include"
+          west build -s app -b ${{ matrix.board }} -d build -- \
+            -DCONF_FILE="$(pwd)/app/prj.conf" \
+            -DDTC_OVERLAY_FILE="$(pwd)/app/app.overlay"
+          ls -l build/zephyr/zephyr.uf2 build/zephyr/zephyr.hex
 
-      - name: Upload Artifact
+      - name: Upload UF2 / HEX
         uses: actions/upload-artifact@v4
         with:
-          name: zmk-nice_nano
-          path: build/zephyr/zmk.uf2
+          name: ble-fixture-${{ matrix.board }}
+          path: |
+            build/zephyr/zephyr.uf2
+            build/zephyr/zephyr.hex
