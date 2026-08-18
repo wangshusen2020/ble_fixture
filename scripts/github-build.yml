@@ -1,0 +1,58 @@
+# Copy this file to .github/workflows/build.yml
+# (the GitHub App used by this branch cannot update workflow files).
+name: Build BLE Fixture
+
+on:
+  push:
+    paths-ignore:
+      - 'README.md'
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: zmkfirmware/zmk-build-arm:stable
+    strategy:
+      fail-fast: false
+      matrix:
+        board: [nice_nano, nice_nano_v2]
+    steps:
+      - name: Checkout fixture repo
+        uses: actions/checkout@v4
+
+      - name: Cache west modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.west
+            bootloader
+            modules
+            tools
+            zephyr
+            zmk
+          key: ${{ runner.os }}-west-${{ matrix.board }}-${{ hashFiles('config/west.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-west-
+
+      - name: Initialize West workspace
+        run: |
+          west init -l config
+          west update --narrow
+          west zephyr-export
+
+      - name: Build Nordic Blinky fixture
+        run: |
+          west build -s app -b ${{ matrix.board }} -d build -- \
+            -DCONF_FILE="$(pwd)/app/prj.conf" \
+            -DDTC_OVERLAY_FILE="$(pwd)/app/app.overlay"
+          ls -l build/zephyr/zephyr.uf2 build/zephyr/zephyr.hex
+
+      - name: Upload UF2 / HEX
+        uses: actions/upload-artifact@v4
+        with:
+          name: ble-fixture-${{ matrix.board }}
+          path: |
+            build/zephyr/zephyr.uf2
+            build/zephyr/zephyr.hex

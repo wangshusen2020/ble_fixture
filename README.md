@@ -4,8 +4,12 @@ nice!nano 上的 **Nordic Blinky** 夹具固件：通电后持续 legacy 广播�
 
 ## 刷写
 
+当前仓库里的 `.github/workflows/build.yml` **仍在编 ZMK**，Actions 只会出 `zmk.uf2`。
+要用 Blinky 夹具，把 `scripts/github-build.yml` 复制为 `.github/workflows/build.yml` 后重跑 Actions，
+或本机：`./scripts/ci-build.sh nice_nano_v2`（原版板用 `nice_nano`）。
+
 1. 双击 reset，出现 `NICENANO` 盘。
-2. 把 Actions 产物里的 **`zephyr.uf2`** 拷进去。
+2. 把 **`zephyr.uf2`** 拷进去（不要刷 `zmk.uf2`）。
    - 原版 nice!nano 用 `ble-fixture-nice_nano`
    - nice!nano v2 用 `ble-fixture-nice_nano_v2`
 3. 盘马上消失、文件管理器报 “No such file or directory” **是正常的**（MCU 复位比 OS 确认拷贝更快）。
