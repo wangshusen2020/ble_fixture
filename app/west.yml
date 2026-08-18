@@ -5,7 +5,7 @@ manifest:
   projects:
     - name: zmk
       remote: zmkfirmware
-      revision: main
-      import: true  # 从 zmk 仓库导入所有模块（包括板型定义）
+      revision: v3.6.0  # 锁定稳定版本
+      import: true      # 从 ZMK 导入所有模块（包括板型定义）
   self:
     path: .
