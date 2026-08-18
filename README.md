@@ -1,14 +1,46 @@
 # BLE Fixture (nice!nano)
 
-Turns a [nice!nano v2](https://nicekeyboards.com/nice-nano/) into a continuously advertising BLE peripheral named `Nordic_Blinky`.
+nice!nano 上的 **Nordic Blinky** 夹具固件：持续广播 `Nordic_Blinky`，并带 LED Button Service (LBS) UUID，方便 nRF Connect / 测试仪扫描。
 
-Firmware is built with [ZMK](https://zmk.dev/) using a mock 1-key matrix so the controller can run without a keyboard PCB.
+## 刷写
 
-## Build
+1. 双击 reset，出现 `NICENANO` 盘。
+2. 把 Actions 产物里的 `zephyr.uf2` 拷进去。
+3. 盘马上消失、文件管理器报 “No such file or directory” **是正常的**（MCU 复位比 OS 确认拷贝更快）。
 
-Push to GitHub (or run **Actions → Build ZMK firmware**) and download the `firmware` artifact (`ble-fixture-nice-nano.uf2`).
+## 怎么确认固件在跑（按这个顺序）
 
-## Flash
+1. **看灯**  
+   未连接时板载蓝灯约 1 Hz 闪烁 = 程序已起来，并在广播。  
+   灯完全不亮：多半没刷进去，再双击 reset 刷一次。
 
-1. Double-tap reset on the nice!nano to enter the bootloader.
-2. Copy `ble-fixture-nice-nano.uf2` onto the `NICENANO` drive.
+2. **USB 串口**（最方便的 debug）  
+   刷完后用数据线连电脑，会出现 `Nordic_Blinky` CDC 串口（Linux 一般是 `/dev/ttyACM0`）：
+
+   ```bash
+   # Linux
+   screen /dev/ttyACM0 115200
+   # 或
+   cat /dev/ttyACM0
+   ```
+
+   应周期性打印：
+
+   ```
+   === BLE fixture / Nordic_Blinky ===
+   Advertising as 'Nordic_Blinky' (LBS UUID 1523)
+   up 2s  connected=0  adv_name=Nordic_Blinky  led=0
+   ```
+
+   - 有这段日志但手机搜不到：查手机蓝牙开关、距离、是否过滤了 UUID。
+   - 完全没有串口：固件没跑或 USB 栈没起来，回到第 1 步看灯。
+
+3. **nRF Connect（手机）**  
+   - Scanner 里不要只搜名字，先关 Filter。  
+   - 应看到 `Nordic_Blinky`，Advertising data 里有 128-bit UUID  
+     `00001523-1212-efde-1523-785feabcd123`。  
+   - 点连接后可写 LED characteristic（`...1525...`）控制灯。
+
+## 本地编译
+
+依赖 [ZMK 构建镜像](https://hub.docker.com/r/zmkfirmware/zmk-build-arm) 或本机 west + Zephyr。CI 使用 ZMK 的 west 工作区只为拿到 Zephyr 和 nice!nano 板级文件。
