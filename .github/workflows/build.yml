@@ -46,9 +46,7 @@ jobs:
 
       - name: Build Firmware
         run: |
-          west build -s app -b nice_nano -- \
-            -DZMK_CONFIG="$(pwd)/config-repo/config" \
-            -DDTS_EXTRA_CPPFLAGS="-I$(pwd)/app/include"
+          west build -s app -b nice_nano -- -DZMK_CONFIG="$(pwd)/config-repo/config"
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
