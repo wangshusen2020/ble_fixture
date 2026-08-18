@@ -14,8 +14,25 @@ nice!nano 上的 **Nordic Blinky** 夹具固件：持续广播 `Nordic_Blinky`�
    未连接时板载蓝灯约 1 Hz 闪烁 = 程序已起来，并在广播。  
    灯完全不亮：多半没刷进去，再双击 reset 刷一次。
 
-2. **USB 串口**（最方便的 debug）  
-   刷完后用数据线连电脑，会出现 `Nordic_Blinky` CDC 串口（Linux 一般是 `/dev/ttyACM0`）：
+2. **先确认 USB 枚举（比串口更靠谱）**
+
+   ```bash
+   dmesg | tail -40
+   lsusb
+   ls /dev/ttyACM* /dev/ttyUSB* 2>/dev/null
+   ls /media/$USER /run/media/$USER 2>/dev/null
+   ```
+
+   | 现象 | 含义 |
+   |---|---|
+   | 出现 `NICENANO` 盘 | 还在 **bootloader**，应用固件没跑起来 |
+   | 出现键盘 HID，没有串口 | 当前是 **ZMK** 固件（旧产物 `zmk.uf2`），本来就没有 `/dev/ttyACM0` |
+   | 出现 `Nordic_Blinky` CDC / `ttyACM0` | 新 Blinky 固件已起来，可以 `cat /dev/ttyACM0` |
+
+   **现在 CI 产物仍是 `zmk.uf2`，没有 USB 串口是正常的**，不要找 `/dev/ttyACM0`。
+
+3. **USB 串口**（只有新 Blinky 固件才有）  
+   刷完 `zephyr.uf2` 后才会出现 CDC 串口：
 
    ```bash
    # Linux
