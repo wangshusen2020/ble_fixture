@@ -12,6 +12,7 @@ if [[ ! -d .west ]]; then
 fi
 
 west build -s app -b "$BOARD" -d "build-$BOARD" -- \
+  -DBOARD_ROOT="$ROOT/config" \
   -DCONF_FILE="$ROOT/app/prj.conf" \
   -DDTC_OVERLAY_FILE="$ROOT/app/app.overlay"
 

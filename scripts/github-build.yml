@@ -45,6 +45,7 @@ jobs:
       - name: Build Nordic Blinky fixture
         run: |
           west build -s app -b ${{ matrix.board }} -d build -- \
+            -DBOARD_ROOT="$(pwd)/config" \
             -DCONF_FILE="$(pwd)/app/prj.conf" \
             -DDTC_OVERLAY_FILE="$(pwd)/app/app.overlay"
           ls -l build/zephyr/zephyr.uf2 build/zephyr/zephyr.hex
