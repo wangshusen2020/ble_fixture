@@ -17,7 +17,8 @@
         compatible = "zmk,matrix-transform";
         rows = <1>;
         columns = <1>;
-        map = <RC(0,0)>;
+        /* 直接写 0，或者 MATRIX_KEY(0, 0)，避免触发 modifiers.h 中的 RC 宏冲突 */
+        map = <0>;
     };
 
     keymap {
