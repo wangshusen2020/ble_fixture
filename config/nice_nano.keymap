@@ -1,10 +1,29 @@
 #include <behaviors.dtsi>
+#include <dt-bindings/zmk/keys.dtsi>
 
 / {
+    /* 1. 定义一个虚拟的 1x1 矩阵，满足 ZMK 代码对 kscan 的强制要求 */
+    kscan0: kscan {
+        compatible = "zmk,kscan-mock";
+        columns = <1>;
+        rows = <1>;
+        events = <0>;
+    };
+
+    /* 2. 定义对应的矩阵转换映射 */
+    transform: matrix_transform {
+        compatible = "zmk,matrix-transform";
+        rows = <1>;
+        columns = <1>;
+        map = <RC(0,0)>;
+    };
+
     keymap {
         compatible = "zmk,keymap";
 
         default_layer {
+            /* 3. 关联虚拟矩阵 */
+            display-name = "Default";
             bindings = <
                 &none
             >;
