@@ -9,4 +9,47 @@ on:
 
 jobs:
   build:
-    uses: zmkfirmware/zmk/.github/workflows/build-user-config.yml@main
+    runs-on: ubuntu-latest
+    container:
+      image: zmkfirmware/zmk-build-arm:stable
+    steps:
+      - name: Checkout ZMK
+        uses: actions/checkout@v3
+        with:
+          repository: zmkfirmware/zmk
+          ref: main
+
+      - name: Cache west modules
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.west
+            bootloader
+            modules
+            tools
+            zephyr
+            zmk
+          key: ${{ runner.os }}-zmk-${{ hashFiles('**/west.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-zmk-
+
+      - name: Initialize West Workspace
+        run: |
+          west init -l app
+          west update
+          west zephyr-export
+
+      - name: Copy User Config
+        uses: actions/checkout@v3
+        with:
+          path: config-repo
+
+      - name: Build Firmware
+        run: |
+          west build -s app -b nice_nano -- -DZMK_CONFIG="$(pwd)/config-repo/config"
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: zmk-nice_nano
+          path: build/zephyr/zmk.uf2
