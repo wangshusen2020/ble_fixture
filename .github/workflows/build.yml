@@ -48,8 +48,8 @@ jobs:
         run: |
           west build -s app -b nice_nano -- \
             -DZMK_CONFIG="$(pwd)/config-repo/config" \
-            -DZEPHYR_EXTRA_MODULES="$(pwd)/app" \
-            -DEXTRA_DTC_FLAGS="-I$(pwd)/app/include"
+            -DZEPHYR_EXTRA_MODULES="$(pwd)/app/module" \
+            -DDTC_INCLUDE_PATH="$(pwd)/app/include"
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
