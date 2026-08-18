@@ -1,0 +1,4 @@
+name: ble-fixture-boards
+build:
+  settings:
+    board_root: .

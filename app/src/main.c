@@ -29,15 +29,28 @@ static bool led_ready;
 static uint8_t led_state;
 static uint8_t button_state;
 static volatile bool connected;
+static volatile bool advertising;
 
+/*
+ * Primary ADV must be self-contained for passive scanners / factory fixtures.
+ * Flags (3) + complete name "Nordic_Blinky" (16) = 19 bytes (< 31).
+ * 128-bit LBS UUID goes in the scan response for nRF Connect / active scan.
+ */
 static const struct bt_data ad[] = {
 	BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
-	BT_DATA_BYTES(BT_DATA_UUID128_ALL, BT_UUID_LBS_VAL),
+	BT_DATA(BT_DATA_NAME_COMPLETE, DEVICE_NAME, DEVICE_NAME_LEN),
 };
 
 static const struct bt_data sd[] = {
-	BT_DATA(BT_DATA_NAME_COMPLETE, DEVICE_NAME, DEVICE_NAME_LEN),
+	BT_DATA_BYTES(BT_DATA_UUID128_ALL, BT_UUID_LBS_VAL),
 };
+
+/* ~20–30 ms connectable undirected legacy advertising */
+#define FIXTURE_ADV_PARAM \
+	BT_LE_ADV_PARAM(BT_LE_ADV_OPT_CONNECTABLE, \
+			BT_GAP_ADV_FAST_INT_MIN_1, \
+			BT_GAP_ADV_FAST_INT_MAX_1, \
+			NULL)
 
 static void apply_led(uint8_t on)
 {
@@ -94,19 +107,23 @@ BT_GATT_SERVICE_DEFINE(lbs_svc,
 
 static void start_adv(void)
 {
-#ifdef BT_LE_ADV_CONN_FAST_1
-	int err = bt_le_adv_start(BT_LE_ADV_CONN_FAST_1, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
-#else
-	int err = bt_le_adv_start(BT_LE_ADV_CONN, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
-#endif
+	int err;
 
+	if (connected) {
+		return;
+	}
+
+	err = bt_le_adv_start(FIXTURE_ADV_PARAM, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
 	if (err == -EALREADY) {
+		advertising = true;
 		return;
 	}
 	if (err) {
+		advertising = false;
 		printk("Advertising FAILED (%d)\n", err);
 	} else {
-		printk("Advertising as '%s' (LBS UUID 1523)\n", DEVICE_NAME);
+		advertising = true;
+		printk("Advertising as '%s' (name in ADV, LBS UUID in SR)\n", DEVICE_NAME);
 	}
 }
 
@@ -118,10 +135,12 @@ static void connected_cb(struct bt_conn *conn, uint8_t err)
 	if (err) {
 		printk("Connect failed %s (err %u)\n", addr, err);
 		connected = false;
+		advertising = false;
 		start_adv();
 		return;
 	}
 	connected = true;
+	advertising = false;
 	printk("Connected %s\n", addr);
 }
 
@@ -131,6 +150,7 @@ static void disconnected_cb(struct bt_conn *conn, uint8_t reason)
 
 	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
 	connected = false;
+	advertising = false;
 	printk("Disconnected %s (reason 0x%02x)\n", addr, reason);
 	start_adv();
 }
@@ -151,7 +171,7 @@ static int init_led(void)
 		return -EIO;
 	}
 	led_ready = true;
-	printk("LED ready on P0.15 — blinks while advertising\n");
+	printk("LED ready — blinks while advertising\n");
 	return 0;
 }
 
@@ -179,9 +199,12 @@ int main(void)
 			/* 1 Hz heartbeat: firmware is alive and advertising */
 			gpio_pin_toggle_dt(&led);
 		}
+		if (!connected && !advertising) {
+			start_adv();
+		}
 		if ((tick % 4) == 0) {
-			printk("up %us  connected=%d  adv_name=%s  led=%u\n",
-			       tick / 2, connected, DEVICE_NAME, led_state);
+			printk("up %us  connected=%d  adv=%d  name=%s  led=%u\n",
+			       tick / 2, connected, advertising, DEVICE_NAME, led_state);
 		}
 		k_sleep(K_MSEC(500));
 	}
