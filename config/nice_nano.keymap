@@ -1,12 +1,6 @@
-/ {
-    /* 声明根作用域 dummy 行为，防止 DTS 预处理器报 undefined phandle */
-    behaviors {
-        none: none {
-            compatible = "zmk,behavior-dummy";
-            #binding-cells = <0>;
-        };
-    };
+#include <dt-bindings/zmk/keys.dtsi>
 
+/ {
     keymap {
         compatible = "zmk,keymap";
 
