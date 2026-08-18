@@ -32,7 +32,7 @@ jobs:
           cd app
           west init -l .
           west update
-          west zephyr-export
+          # 不需要 west zephyr-export，因为我们手动添加了板型定义
 
       - name: Build firmware
         run: |

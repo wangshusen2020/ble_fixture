@@ -5,7 +5,7 @@ manifest:
   projects:
     - name: zmk
       remote: zmkfirmware
-      revision: v0.3.0  # 锁定稳定版本
-      import: true      # 从 ZMK 导入所有模块（包括板型定义）
+      revision: v0.3.0  # 使用 ZMK v0.3.0
+      # 移除 import: true，避免导入 west.yml
   self:
     path: .
