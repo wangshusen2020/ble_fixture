@@ -1,0 +1,81 @@
+/*
+ * Copyright (c) 2021 The ZMK Contributors
+ * SPDX-License-Identifier: MIT
+ *
+ * Adafruit nRF52 bootloader layout (same as ZMK nice!nano).
+ * No ZMK-only nodes so this can be used by a standalone Zephyr app.
+ */
+
+#include <nordic/nrf52840_qiaa.dtsi>
+#include "nice_nano-pinctrl.dtsi"
+
+/ {
+	model = "nice!nano";
+	compatible = "nice,nano";
+
+	chosen {
+		zephyr,code-partition = &code_partition;
+		zephyr,sram = &sram0;
+		zephyr,flash = &flash0;
+	};
+
+	aliases {
+		led0 = &blue_led;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		blue_led: led_0 {
+			gpios = <&gpio0 15 GPIO_ACTIVE_HIGH>;
+		};
+	};
+};
+
+&adc {
+	status = "okay";
+};
+
+&gpiote {
+	status = "okay";
+};
+
+&gpio0 {
+	status = "okay";
+};
+
+&gpio1 {
+	status = "okay";
+};
+
+&uart0 {
+	compatible = "nordic,nrf-uarte";
+	current-speed = <115200>;
+	pinctrl-0 = <&uart0_default>;
+	pinctrl-1 = <&uart0_sleep>;
+	pinctrl-names = "default", "sleep";
+};
+
+zephyr_udc0: &usbd {
+	status = "okay";
+};
+
+&flash0 {
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		sd_partition: partition@0 {
+			reg = <0x00000000 0x00026000>;
+		};
+		code_partition: partition@26000 {
+			reg = <0x00026000 0x000c6000>;
+		};
+		storage_partition: partition@ec000 {
+			reg = <0x000ec000 0x00008000>;
+		};
+		boot_partition: partition@f4000 {
+			reg = <0x000f4000 0x0000c000>;
+		};
+	};
+};
