@@ -29,7 +29,8 @@ jobs:
 
       - name: West init and update
         run: |
-          west init -l app
+          cd app  # 进入 app 目录
+          west init -l .
           west update
 
       - name: Build firmware

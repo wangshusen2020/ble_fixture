@@ -8,4 +8,4 @@ manifest:
       revision: main
       import: app/west.yml
   self:
-    path: app
+    path: .  # 因为 west.yml 现在在 app/ 目录下，所以 path 改为 "."
