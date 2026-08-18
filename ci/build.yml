@@ -1,0 +1,112 @@
+name: Build BLE Fixture Firmware
+
+on:
+  push:
+    paths-ignore:
+      - 'README.md'
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: zmkfirmware/zmk-build-arm:stable
+
+    steps:
+      - name: Checkout this repo
+        uses: actions/checkout@v4
+        with:
+          path: repo
+
+      # The west workspace is kept separate from the repo checkout. We only use
+      # it to obtain Zephyr and ZMK's nice!nano board definition — the firmware
+      # itself is the plain Zephyr application in repo/app.
+      - name: Prepare west workspace
+        run: |
+          mkdir -p ws/config
+          cp repo/config/west.yml ws/config/west.yml
+
+      - name: Cache west modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ws/zephyr
+            ws/modules
+            ws/tools
+            ws/zmk
+          key: ${{ runner.os }}-ws-${{ hashFiles('repo/config/west.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-ws-
+
+      - name: West init / update
+        working-directory: ws
+        run: |
+          west init -l config
+          west update --fetch-opt=--filter=tree:0
+          west zephyr-export
+
+      - name: Build firmware
+        working-directory: ws
+        run: |
+          # -s : OUR application (plain Zephyr), NOT zmk/app.
+          # -b : nice!nano; its board.yml defaults to revision 2.0.0.
+          # BOARD_ROOT/DTS_ROOT point at ZMK's board module, which is where the
+          # nice!nano board definition lives.
+          west build -p always -s "$GITHUB_WORKSPACE/repo/app" -b nice_nano -d build -- \
+            -DBOARD_ROOT="$GITHUB_WORKSPACE/ws/zmk/app/module" \
+            -DDTS_ROOT="$GITHUB_WORKSPACE/ws/zmk/app/module"
+
+      # Guard rail for the exact bug this repo hit before: the firmware built
+      # and flashed fine, but contained no Bluetooth at all.
+      - name: Verify Bluetooth is actually compiled in
+        working-directory: ws
+        run: |
+          cfg=build/zephyr/.config
+          fail=0
+          for sym in \
+            CONFIG_BT=y \
+            CONFIG_BT_PERIPHERAL=y \
+            CONFIG_BT_LL_SW_SPLIT=y \
+            CONFIG_USE_DT_CODE_PARTITION=y \
+            CONFIG_BUILD_OUTPUT_UF2=y
+          do
+            if grep -qx "$sym" "$cfg"; then
+              echo "ok   $sym"
+            else
+              echo "FAIL expected $sym"
+              fail=1
+            fi
+          done
+
+          name=$(grep '^CONFIG_BT_DEVICE_NAME=' "$cfg" || true)
+          echo "info $name"
+          [ "$name" = 'CONFIG_BT_DEVICE_NAME="Nordic_Blinky"' ] || { echo "FAIL bad adv name"; fail=1; }
+
+          # Must be linked at the UF2 bootloader's code partition, not 0x0.
+          off=$(grep '^CONFIG_FLASH_LOAD_OFFSET=' "$cfg" || true)
+          echo "info $off"
+          [ "$off" = "CONFIG_FLASH_LOAD_OFFSET=0x26000" ] || { echo "FAIL bad flash offset"; fail=1; }
+
+          test -f build/zephyr/zephyr.uf2 || { echo "FAIL no zephyr.uf2"; fail=1; }
+          exit $fail
+
+      - name: Bluetooth Kconfig (debug aid)
+        if: ${{ !cancelled() }}
+        working-directory: ws
+        run: |
+          echo "::group::CONFIG_BT*"
+          grep -E '^CONFIG_(BT|USB|FLASH_LOAD|BUILD_OUTPUT)' build/zephyr/.config | sort || true
+          echo "::endgroup::"
+
+      - name: Stage artifacts
+        run: |
+          mkdir -p artifacts
+          cp ws/build/zephyr/zephyr.uf2 artifacts/ble-fixture-nice-nano.uf2
+          cp ws/build/zephyr/.config    artifacts/kconfig.txt
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ble-fixture-nice-nano
+          path: artifacts

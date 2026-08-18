@@ -1,3 +1,10 @@
+/*
+ * BLE fixture for nice!nano — a plain Zephyr application (NOT ZMK).
+ *
+ * Advertises continuously as "Nordic_Blinky" with the Nordic LED Button
+ * Service (LBS) so it can be found with nRF Connect or a BLE test rig.
+ */
+
 #include <zephyr/kernel.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/gpio.h>
@@ -29,14 +36,22 @@ static bool led_ready;
 static uint8_t led_state;
 static uint8_t button_state;
 static volatile bool connected;
+static volatile bool advertising;
 
+/*
+ * The name goes in the *advertising* packet (not the scan response) so that
+ * scanners which filter by name find the fixture without having to perform an
+ * active scan. Flags(3) + name(2+13) = 18 bytes, comfortably under the 31-byte
+ * limit. The 128-bit LBS UUID (18 bytes) would not fit alongside it, so it is
+ * moved to the scan response — this matches Nordic's own LBS sample.
+ */
 static const struct bt_data ad[] = {
 	BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
-	BT_DATA_BYTES(BT_DATA_UUID128_ALL, BT_UUID_LBS_VAL),
+	BT_DATA(BT_DATA_NAME_COMPLETE, DEVICE_NAME, DEVICE_NAME_LEN),
 };
 
 static const struct bt_data sd[] = {
-	BT_DATA(BT_DATA_NAME_COMPLETE, DEVICE_NAME, DEVICE_NAME_LEN),
+	BT_DATA_BYTES(BT_DATA_UUID128_ALL, BT_UUID_LBS_VAL),
 };
 
 static void apply_led(uint8_t on)
@@ -101,11 +116,14 @@ static void start_adv(void)
 #endif
 
 	if (err == -EALREADY) {
+		advertising = true;
 		return;
 	}
 	if (err) {
+		advertising = false;
 		printk("Advertising FAILED (%d)\n", err);
 	} else {
+		advertising = true;
 		printk("Advertising as '%s' (LBS UUID 1523)\n", DEVICE_NAME);
 	}
 }
@@ -118,10 +136,12 @@ static void connected_cb(struct bt_conn *conn, uint8_t err)
 	if (err) {
 		printk("Connect failed %s (err %u)\n", addr, err);
 		connected = false;
+		advertising = false;
 		start_adv();
 		return;
 	}
 	connected = true;
+	advertising = false;
 	printk("Connected %s\n", addr);
 }
 
@@ -131,6 +151,7 @@ static void disconnected_cb(struct bt_conn *conn, uint8_t reason)
 
 	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
 	connected = false;
+	advertising = false;
 	printk("Disconnected %s (reason 0x%02x)\n", addr, reason);
 	start_adv();
 }
@@ -151,13 +172,14 @@ static int init_led(void)
 		return -EIO;
 	}
 	led_ready = true;
-	printk("LED ready on P0.15 — blinks while advertising\n");
+	printk("LED ready on P0.15 - blinks while advertising\n");
 	return 0;
 }
 
 int main(void)
 {
 	int err;
+	bool bt_ok = false;
 
 	printk("\n=== BLE fixture / Nordic_Blinky ===\n");
 	printk("Board: nice!nano  build: %s %s\n", __DATE__, __TIME__);
@@ -166,24 +188,39 @@ int main(void)
 
 	err = bt_enable(NULL);
 	if (err) {
-		printk("bt_enable FAILED (%d) — check USB log / LED pattern\n", err);
+		printk("bt_enable FAILED (%d) - check USB log / LED pattern\n", err);
 	} else {
+		bt_ok = true;
 		printk("Bluetooth ready\n");
 		start_adv();
 	}
 
 	uint32_t tick = 0;
+
 	while (1) {
 		tick++;
-		if (!connected && led_ready) {
-			/* 1 Hz heartbeat: firmware is alive and advertising */
-			gpio_pin_toggle_dt(&led);
+
+		if (led_ready) {
+			if (!bt_ok) {
+				/* Fast 5 Hz stutter = Bluetooth failed to start. */
+				gpio_pin_toggle_dt(&led);
+			} else if (!connected) {
+				/* 1 Hz heartbeat = alive and advertising. */
+				gpio_pin_toggle_dt(&led);
+			}
 		}
+
+		/* If advertising ever stops without a connection, restart it. */
+		if (bt_ok && !connected && !advertising && (tick % 4) == 0) {
+			start_adv();
+		}
+
 		if ((tick % 4) == 0) {
-			printk("up %us  connected=%d  adv_name=%s  led=%u\n",
-			       tick / 2, connected, DEVICE_NAME, led_state);
+			printk("up %us  connected=%d  advertising=%d  adv_name=%s  led=%u\n",
+			       tick / 2, connected, advertising, DEVICE_NAME, led_state);
 		}
-		k_sleep(K_MSEC(500));
+
+		k_sleep(bt_ok ? K_MSEC(500) : K_MSEC(100));
 	}
 
 	return 0;

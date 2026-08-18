@@ -2,62 +2,80 @@
 
 nice!nano 上的 **Nordic Blinky** 夹具固件：持续广播 `Nordic_Blinky`，并带 LED Button Service (LBS) UUID，方便 nRF Connect / 测试仪扫描。
 
+这是一个**普通 Zephyr 应用**（不是 ZMK 键盘固件）。
+
 ## 刷写
 
 1. 双击 reset，出现 `NICENANO` 盘。
-2. 把 Actions 产物里的 `zephyr.uf2` 拷进去。
-3. 盘马上消失、文件管理器报 “No such file or directory” **是正常的**（MCU 复位比 OS 确认拷贝更快）。
+2. 把 Actions 产物 `ble-fixture-nice-nano.uf2` 拷进去。
+3. 盘马上消失、文件管理器报 "No such file or directory" **是正常的**（MCU 复位比 OS 确认拷贝更快）。
+
+> 注意产物名：现在是 `ble-fixture-nice-nano.uf2`。旧的 `zmk.uf2` 是**不含蓝牙**的错误产物，别再用了。
+
+## 之前搜不到信号的原因
+
+CI 之前构建的是 **ZMK 自己的 app**，并且用的是 `-b nice_nano`（不带 `//zmk` 变体）。
+只有 `nice_nano//zmk` 变体的 defconfig 里才有 `CONFIG_ZMK_BLE=y`；`ZMK_BLE` 自身没有
+`default y`，所以它保持为 `n`，`select BT` 从未发生 —— 编译出来的固件里**根本没有蓝牙协议栈**。
+灯在闪、USB 也可能枚举，但射频部分完全不存在，因此任何扫描器都搜不到。
+
+同时 `config/*.conf`（设置广播名的那些文件）从未被传给构建，属于死文件。
+
+现在改为：构建本仓库的 `app/`（普通 Zephyr 应用），直接用 Zephyr 原生符号
+`CONFIG_BT=y` / `CONFIG_BT_PERIPHERAL=y`，并在 CI 里加了断言，
+一旦 `CONFIG_BT` 不是 `y`、或链接地址不是 `0x26000`，构建直接失败。
 
 ## 怎么确认固件在跑（按这个顺序）
 
-1. **看灯**  
-   未连接时板载蓝灯约 1 Hz 闪烁 = 程序已起来，并在广播。  
-   灯完全不亮：多半没刷进去，再双击 reset 刷一次。
+1. **看灯**
+   - 约 1 Hz 慢闪 = 程序已起来，并在广播。
+   - 约 5 Hz 快闪 = `bt_enable()` 失败（蓝牙没起来），请看串口日志。
+   - 完全不亮 = 多半没刷进去，再双击 reset 刷一次。
 
-2. **先确认 USB 枚举（比串口更靠谱）**
-
-   ```bash
-   dmesg | tail -40
-   lsusb
-   ls /dev/ttyACM* /dev/ttyUSB* 2>/dev/null
-   ls /media/$USER /run/media/$USER 2>/dev/null
-   ```
-
-   | 现象 | 含义 |
-   |---|---|
-   | 出现 `NICENANO` 盘 | 还在 **bootloader**，应用固件没跑起来 |
-   | 出现键盘 HID，没有串口 | 当前是 **ZMK** 固件（旧产物 `zmk.uf2`），本来就没有 `/dev/ttyACM0` |
-   | 出现 `Nordic_Blinky` CDC / `ttyACM0` | 新 Blinky 固件已起来，可以 `cat /dev/ttyACM0` |
-
-   **现在 CI 产物仍是 `zmk.uf2`，没有 USB 串口是正常的**，不要找 `/dev/ttyACM0`。
-
-3. **USB 串口**（只有新 Blinky 固件才有）  
-   刷完 `zephyr.uf2` 后才会出现 CDC 串口：
+2. **USB 串口**
 
    ```bash
-   # Linux
-   screen /dev/ttyACM0 115200
-   # 或
-   cat /dev/ttyACM0
+   ls /dev/ttyACM*
+   screen /dev/ttyACM0 115200   # 或 cat /dev/ttyACM0
    ```
 
    应周期性打印：
 
    ```
    === BLE fixture / Nordic_Blinky ===
+   Bluetooth ready
    Advertising as 'Nordic_Blinky' (LBS UUID 1523)
-   up 2s  connected=0  adv_name=Nordic_Blinky  led=0
+   up 2s  connected=0  advertising=1  adv_name=Nordic_Blinky  led=0
    ```
 
-   - 有这段日志但手机搜不到：查手机蓝牙开关、距离、是否过滤了 UUID。
-   - 完全没有串口：固件没跑或 USB 栈没起来，回到第 1 步看灯。
+   - `advertising=1` 却搜不到：查手机蓝牙开关、距离、扫描器是否开了过滤。
+   - 出现 `bt_enable FAILED`：把这行日志贴出来。
 
-4. **nRF Connect（手机）**  
-   - Scanner 里不要只搜名字，先关 Filter。  
-   - 应看到 `Nordic_Blinky`，Advertising data 里有 128-bit UUID  
-     `00001523-1212-efde-1523-785feabcd123`。  
-   - 点连接后可写 LED characteristic（`...1525...`）控制灯。
+3. **nRF Connect（手机）**
+   - Scanner 里先关掉 Filter，不要只按名字搜。
+   - 应看到 `Nordic_Blinky`；名字在广播包里，LBS 的 128-bit UUID
+     `00001523-1212-efde-1523-785feabcd123` 在扫描响应里。
+   - 连接后可写 LED characteristic（`...1525...`）控制灯。
 
-## 本地编译
+## 构建
 
-依赖 [ZMK 构建镜像](https://hub.docker.com/r/zmkfirmware/zmk-build-arm) 或本机 west + Zephyr。CI 使用 ZMK 的 west 工作区只为拿到 Zephyr 和 nice!nano 板级文件。
+CI 用 ZMK 的 west 工作区，只是为了拿到 Zephyr 和 nice!nano 板级定义
+（`zmk/app/module/boards/nicekeyboards/nice_nano`），构建的始终是本仓库的 `app/`：
+
+```bash
+west build -p always -s app -b nice_nano -- \
+  -DBOARD_ROOT=<ws>/zmk/app/module \
+  -DDTS_ROOT=<ws>/zmk/app/module
+```
+
+`config/west.yml` 把 ZMK 固定在某个 commit，避免上游 `main` 变动再次弄坏构建。
+
+## 仓库结构
+
+```
+app/            固件本体（普通 Zephyr 应用）
+  prj.conf      Zephyr 配置：CONFIG_BT 等
+  app.overlay   led0 别名 + USB CDC 控制台
+  src/main.c    广播 + LBS GATT 服务
+config/west.yml west manifest（拉取 Zephyr / 板级定义）
+```

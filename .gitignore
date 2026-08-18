@@ -1,8 +1,9 @@
-# West / Zephyr workspace (local builds).
-# Do not ignore zephyr/module.yml — that file marks this repo as a ZMK module.
+# West / Zephyr workspace (local builds)
 /bootloader/
 /modules/
 /tools/
+/zephyr/
 /zmk/
 /build/
+/ws/
 /.west/

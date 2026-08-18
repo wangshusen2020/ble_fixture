@@ -1,12 +1,19 @@
 manifest:
-  defaults:
-    revision: v0.3
   remotes:
     - name: zmkfirmware
       url-base: https://github.com/zmkfirmware
+
   projects:
+    # We only use the ZMK workspace to pull in Zephyr (v4.1) and the
+    # nice!nano board definition (zmk/app/module/boards/nicekeyboards/nice_nano).
+    # The firmware itself is the plain Zephyr app in ../app.
+    #
+    # Pinned to a specific commit so CI results are reproducible. ZMK's `main`
+    # moves fast and has already broken this build once.
     - name: zmk
       remote: zmkfirmware
+      revision: 6e2ef41e022d555b10f116e395832913f71717b3
       import: app/west.yml
+
   self:
     path: config

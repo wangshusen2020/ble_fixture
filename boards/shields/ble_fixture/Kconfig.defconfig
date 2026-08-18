@@ -1,9 +1,0 @@
-# Copyright (c) 2026 The ZMK Contributors
-# SPDX-License-Identifier: MIT
-
-if SHIELD_BLE_FIXTURE
-
-config ZMK_KEYBOARD_NAME
-    default "Nordic_Blinky"
-
-endif
