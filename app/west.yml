@@ -6,6 +6,6 @@ manifest:
     - name: zmk
       remote: zmkfirmware
       revision: main
-      import: app/west.yml
+      import: true  # 从 zmk 仓库导入所有模块（包括板型定义）
   self:
-    path: .  # 因为 west.yml 现在在 app/ 目录下，所以 path 改为 "."
+    path: .

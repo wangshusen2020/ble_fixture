@@ -25,13 +25,14 @@ jobs:
             tools/
             zephyr/
             bootloader/
-          key: west-${{ hashFiles('west.yml') }}
+          key: west-${{ hashFiles('app/west.yml') }}
 
       - name: West init and update
         run: |
-          cd app  # 进入 app 目录
+          cd app
           west init -l .
           west update
+          west zephyr-export
 
       - name: Build firmware
         run: |
