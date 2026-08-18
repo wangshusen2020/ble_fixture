@@ -14,7 +14,7 @@ jobs:
       image: zmkfirmware/zmk-build-arm:stable
     steps:
       - name: Checkout ZMK
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: zmkfirmware/zmk
           ref: main
