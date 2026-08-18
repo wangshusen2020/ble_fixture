@@ -20,7 +20,7 @@ jobs:
           ref: main
 
       - name: Cache west modules
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.west
@@ -40,7 +40,7 @@ jobs:
           west zephyr-export
 
       - name: Copy User Config
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: config-repo
 
@@ -49,7 +49,7 @@ jobs:
           west build -s app -b nice_nano -- -DZMK_CONFIG="$(pwd)/config-repo/config"
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: zmk-nice_nano
           path: build/zephyr/zmk.uf2
