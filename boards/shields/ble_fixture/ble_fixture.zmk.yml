@@ -1,0 +1,8 @@
+file_format: "1"
+id: ble_fixture
+name: BLE Fixture
+type: shield
+url: https://github.com/wangshusen2020/ble_fixture
+requires: [pro_micro]
+features:
+  - keys

@@ -1,4 +1,5 @@
 #include <behaviors.dtsi>
+#include <dt-bindings/zmk/keys.h>
 
 / {
     chosen {
@@ -17,7 +18,7 @@
         compatible = "zmk,matrix-transform";
         rows = <1>;
         columns = <1>;
-        /* 直接写 0，或者 MATRIX_KEY(0, 0)，避免触发 modifiers.h 中的 RC 宏冲突 */
+        /* Use a raw position; RC() can collide with modifiers.h */
         map = <0>;
     };
 
@@ -25,7 +26,6 @@
         compatible = "zmk,keymap";
 
         default_layer {
-            display-name = "Default";
             bindings = <
                 &none
             >;
